@@ -1,0 +1,9 @@
+{
+  "name" : "pie-container",
+  "version" : "0.0.1",
+  "main" : "container.js",
+  "dependencies": {
+    "lodash" : "~4.11.2",
+    "es6-promise" : "~3.2.1"
+  }
+}
