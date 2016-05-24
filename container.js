@@ -41,64 +41,71 @@
     }
 
     document.addEventListener('DOMContentLoaded', function () {
+      
+      
+      setTimeout(function(){
 
-      var els = [];
+        console.log('[pie] page loaded - init....');
+        var els = [];
 
-      document.addEventListener('pie.envChanged', function (event) {
-        els.forEach(function (e) {
-          //TODO: find the optimal way of propogating env changes into the components.
-          //Note: have to clone the instance for polymer to pick it up.
-          if (!_.isEqual(e.env, event.detail)) {
-            e.env = _.cloneDeep(event.detail);
+        document.addEventListener('pie.envChanged', function (event) {
+          els.forEach(function (e) {
+            //TODO: find the optimal way of propogating env changes into the components.
+            //Note: have to clone the instance for polymer to pick it up.
+            if (!_.isEqual(e.env, event.detail)) {
+              e.env = _.cloneDeep(event.detail);
+            }
+          });
+
+          if (env.mode === 'evaluate') {
+            processing.evaluate(questions, sessions)
+              .then(function (outcomes) {
+                _.map(outcomes, function (o) {
+                  var el = _.find(els, function (e) {
+                    return e.getAttribute('data-id') === o.id;
+                  });
+
+                  el.outcome = o.outcome;
+                });
+              })
+              .catch(function (e) {
+                console.log(e.stack);
+                console.error('error processing...', e);
+              });
           }
         });
 
-        if (env.mode === 'evaluate') {
-          processing.evaluate(questions, sessions)
-            .then(function (outcomes) {
-              _.map(outcomes, function (o) {
-                var el = _.find(els, function (e) {
-                  return e.getAttribute('data-id') === o.id;
-                });
+        var elements = document.querySelectorAll('[data-id]');
 
-                el.outcome = o.outcome;
-              });
-            })
-            .catch(function (e) {
-              console.log(e.stack);
-              console.error('error processing...', e);
-            })
-        }
-      });
+        for (var i = 0; i < elements.length; ++i) {
+          var el = elements[i];
+          els.push(el);
+          var id = el.getAttribute('data-id');
 
-      var elements = document.querySelectorAll('[data-id]');
+          var question = _.find(questions, { id: id });
+          var session = _.find(sessions, { id: id });
 
-      for (var i = 0; i < elements.length; ++i) {
-        var el = elements[i];
-        els.push(el);
-        var id = el.getAttribute('data-id');
+          if (!session) {
+            session = { id: id };
+            sessions.push(session);
+          }
 
-        var question = _.find(questions, { id: id });
-        var session = _.find(sessions, { id: id });
+          var observed = observe(session, onSessionChanged.bind(this, id));
 
-        if (!session) {
-          session = { id: id };
-          sessions.push(session);
+          el.session = observed;
+          //See pie.envChanged event handler, need to give each element a copy of the env.
+          el.env = _.cloneDeep(env);
+          el.question = question;
         }
 
-        var observed = observe(session, onSessionChanged.bind(this, id));
+        var controlPanel = document.querySelector('pie-control-panel');
 
-        el.session = observed;
-        //See pie.envChanged event handler, need to give each element a copy of the env.
-        el.env = _.cloneDeep(env);
-        el.question = question;
-      }
-
-      var controlPanel = document.querySelector('pie-control-panel');
-
-      if (controlPanel) {
-        controlPanel.env = env;
-      }
+        if (controlPanel) {
+          controlPanel.env = env;
+        }
+        
+      }, 1000);
+      
 
     });
   }
@@ -141,12 +148,19 @@
         });
         resolve(out);
       });
-    }
+    };
   }
   
   function Frameworks() {
+    
+    var contentLoaded = false;
+    document.addEventListener('DOMContentLoaded', function(){
+      console.log('framework - content is now loaded');
+      contentLoaded = true; 
+    });
+    
     var registeredFrameworks = {};
-
+    
     this.processing = function (elementName) {
 
       var key = _(registeredFrameworks).keys().find(function (k) {
@@ -186,15 +200,23 @@
         
         //Add register method used by elements        
         def.register = function(){
+          
+          if(contentLoaded){
+            throw new Error('the content has already been loaded');
+          }
+          
+          def.registeredElements = def.registeredElements || {};
           var args = Array.prototype.slice.call(arguments);
           var name = args[0];
           var prototype = this.definePrototype.apply(this, args); 
-          document.registerElement(name, { prototype: prototype });
+          var Constructor = document.registerElement(name, { prototype: prototype });
+          console.log('registerElement, name:', name, ' prototype: ', prototype);
+          def.registeredElements[name] = { Constructor: Constructor, prototype: prototype};
         }.bind(def);
         
         registeredFrameworks[frameworkName] = def;
       }
-    }
+    };
   }
 
   function Pie() {
