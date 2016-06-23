@@ -1,7 +1,5 @@
 (function (root) {
 
-  console.log('define pie.Container()');
-
   /** Custom element + ui handler */
   function Container(questions, env, sessions, processing) {
     
@@ -137,6 +135,10 @@
     
     var registeredFrameworks = {};
     
+    /**
+     * Return a processing object for the element.
+     * This processing object allows that framework to broker evaluate calls to the underlying logic.
+     */
     this.processing = function (elementName) {
 
       var key = _(registeredFrameworks).keys().find(function (k) {
@@ -199,8 +201,6 @@
 
     var frameworks = new Frameworks();
 
-    this.processing = new ClientSideProcessing(frameworks);
-     
     /**
      * @param name the framework name to register with
      * @return [ElementApi] for the framework
@@ -213,13 +213,32 @@
       frameworks.addFramework(frameworkName, def);
     }
 
-    var newContainer = function (model, mode, session) {
+    var newContainer = function (model, mode, session, processing) {
       console.log('this:', this);
-      return new Container(model, mode, session, this.processing);
+      return new Container(model, mode, session, processing);
     }.bind(this);
-
-    this.Container = function (model, mode, session) {
-      return newContainer(model, mode, session);
+    
+    //Expose the default client side processor 
+    this.clientSideProcessor = new ClientSideProcessing(frameworks);
+    
+    var require = function(p, m) {
+      if(!p){
+        throw new Error(m);
+      }
+    };
+    
+    /**
+     * @param processor : { 
+     *   evaluate: (questions, sessions) => Promise<[{id: string, component: {name:string,version:string}, outcome: any}]>
+     * }
+     */
+    this.Container = function (model, mode, session, processing) {
+      require(model, 'model not defined'); 
+      require(mode, 'mode not defined'); 
+      require(session, 'session not defined'); 
+      require(processing, 'processing not defined'); 
+      
+      return newContainer(model, mode, session, processing);
     }
   };
 
