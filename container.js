@@ -8,40 +8,18 @@
     env = env || { mode: 'gather', locale: 'en_US' };
 
     sessions = sessions || [];
-
-    function observe(o, fn) {
-      function buildProxy(prefix, o) {
-        return new Proxy(o, {
-          set(target, property, value) {
-            // same as before, but add prefix
-            var setResult = Reflect.set(target, property, value);
-            fn(prefix + property, value);
-            return setResult;
-          },
-          get(target, property) {
-            // return a new proxy if possible, add to prefix
-            let out = Reflect.get(target, property);
-            if (out instanceof Object) {
-              return buildProxy(prefix + property + '.', out);
-            }
-            return out;  // primitive, ignore
-          },
-        });
-      }
-      return buildProxy('', o);
-    }
     
     //TODO - rm from pie - should be on sample page
-    function onSessionChanged(id, property, value) {
-      console.log('session changed for component with data-id: ', id);
-      console.log(sessions);
+    function logSession() {
       setTimeout(function () {
         $('.session-preview > textarea').val(JSON.stringify(sessions, null, '  '));
-      }, 100);
+        logSession();
+      }, 1000);
     }
 
+    logSession();
+
     document.addEventListener('DOMContentLoaded', function () {
-      
       
       setTimeout(function(){
 
@@ -86,13 +64,11 @@
           var session = _.find(sessions, { id: id });
 
           if (!session) {
-            session = { id: id };
+            session = {id: id};
             sessions.push(session);
           }
 
-          var observed = observe(session, onSessionChanged.bind(this, id));
-
-          el.session = observed;
+          el.session = session;
           //See pie.envChanged event handler, need to give each element a copy of the env.
           el.env = _.cloneDeep(env);
           el.question = question;
