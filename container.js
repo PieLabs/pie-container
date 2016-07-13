@@ -1,5 +1,17 @@
 (function (root) {
 
+  /**
+   * Events fired by the container, listened to by external resources.
+   **/
+  var Events = {
+    fireStarted: function(session) {
+      document.dispatchEvent(new CustomEvent('pie-container.sessionStarted', { detail : session }));
+    },
+    fireEvaluated: function(outcome) {
+      document.dispatchEvent(new CustomEvent('pie-container.sessionEvaluated', { detail: outcome }));
+    }
+  };
+
   /** Custom element + ui handler */
   function Container(questions, env, sessions, processing) {
     
@@ -43,6 +55,8 @@
 
                   el.outcome = o.outcome;
                 });
+
+                outcomes.forEach(Events.fireEvaluated);
               })
               .catch(function (e) {
                 console.log(e.stack);
@@ -70,6 +84,8 @@
           //See pie.envChanged event handler, need to give each element a copy of the env.
           el.env = _.cloneDeep(env);
           el.question = question;
+
+          Events.fireStarted(session);
         }
 
         var controlPanel = document.querySelector('pie-control-panel');
