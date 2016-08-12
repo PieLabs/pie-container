@@ -16,7 +16,16 @@
     }
 
     logSession();
-    
+
+    function applySetter(el, name, value){
+      var prototype = Object.getPrototypeOf(el);
+      var descriptor = Object.getOwnPropertyDescriptor(prototype, name);
+      if(!descriptor || !_.isFunction(descriptor.set)){
+        throw new Error('Custom element: ' + el.nodeName + ' is missing a setter for "model"')
+      }
+      el[name] = value;
+    } 
+
     document.addEventListener('DOMContentLoaded', function () {
       
       //TODO.. remove this timeout.
@@ -33,12 +42,8 @@
                 var el = _.find(els, function (e) {
                   return e.getAttribute('data-id') === o.id;
                 });
-
-                var descriptor = Object.getOwnPropertyDescriptor(el, 'model');
-                if(!descriptor || !descriptor.set){
-                  throw new Error('Custom element: ' + el.nodeName + ' is missing a setter for "model"')
-                }
-                el.model = o.model;
+                
+                applySetter(el, 'model', o.model);
                 //@deprecated - to be removed - to support older components
                 el.state = o.model;
               });
@@ -62,12 +67,7 @@
             session = { id: id };
             sessions.push(session);
           }
-
-
-          el.session = session;
-          //See pie.envChanged event handler, need to give each element a copy of the env.
-          // el.env = _.cloneDeep(env);
-          // el.question = question;
+          applySetter(el, 'session', session);
         }
 
         var controlPanel = document.querySelector('pie-control-panel');
