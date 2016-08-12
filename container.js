@@ -20,9 +20,6 @@
     function applySetter(el, name, value){
       var prototype = Object.getPrototypeOf(el);
       var descriptor = Object.getOwnPropertyDescriptor(prototype, name);
-      if(!descriptor || !_.isFunction(descriptor.set)){
-        throw new Error('Custom element: ' + el.nodeName + ' is missing a setter for "model"')
-      }
       el[name] = value;
     } 
 
