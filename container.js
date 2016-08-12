@@ -1,16 +1,4 @@
-(function (root) {
-
-  /**
-   * Events fired by the container, listened to by external resources.
-   **/
-  var Events = {
-    fireStarted: function(session) {
-      document.dispatchEvent(new CustomEvent('pie-container.sessionStarted', { detail : session }));
-    },
-    fireEvaluated: function(outcome) {
-      document.dispatchEvent(new CustomEvent('pie-container.sessionEvaluated', { detail: outcome }));
-    }
-  };
+  (function (root) {
 
   /** Custom element + ui handler */
   function Container(questions, env, sessions, processing) {
@@ -23,46 +11,41 @@
     function logSession() {
       setTimeout(function () {
         $('.session-preview > textarea').val(JSON.stringify(sessions, null, '  '));
-        logSession();
-      }, 1000);
+      }, 100);
+      setTimeout(logSession, 2000);
     }
 
     logSession();
-
+    
     document.addEventListener('DOMContentLoaded', function () {
       
+      //TODO.. remove this timeout.
       setTimeout(function(){
 
         console.log('[pie] page loaded - init....');
         var els = [];
 
         document.addEventListener('pie.envChanged', function (event) {
-          els.forEach(function (e) {
-            //TODO: find the optimal way of propogating env changes into the components.
-            //Note: have to clone the instance for polymer to pick it up.
-            if (!_.isEqual(e.env, event.detail)) {
-              e.env = _.cloneDeep(event.detail);
-            }
-          });
-
-          if (env.mode === 'evaluate') {
-            processing.evaluate(questions, sessions)
-              .then(function (outcomes) {
-                _.map(outcomes, function (o) {
-                  var el = _.find(els, function (e) {
-                    return e.getAttribute('data-id') === o.id;
-                  });
-
-                  el.outcome = o.outcome;
+          
+          processing.model(questions, sessions, event.target.env)
+            .then(function(models) {
+              _.map(models, function (o) {
+                var el = _.find(els, function (e) {
+                  return e.getAttribute('data-id') === o.id;
                 });
 
-                outcomes.forEach(Events.fireEvaluated);
-              })
-              .catch(function (e) {
-                console.log(e.stack);
-                console.error('error processing...', e);
+                var descriptor = Object.getOwnPropertyDescriptor(el, 'model');
+                if(!descriptor || !descriptor.set){
+                  throw new Error('Custom element: ' + el.nodeName + ' is missing a setter for "model"')
+                }
+                el.model = o.model;
+                //@deprecated - to be removed - to support older components
+                el.state = o.model;
               });
-          }
+            })
+            .catch(function(err){
+              console.error(err);
+            });
         });
 
         var elements = document.querySelectorAll('[data-id]');
@@ -76,16 +59,15 @@
           var session = _.find(sessions, { id: id });
 
           if (!session) {
-            session = {id: id};
+            session = { id: id };
             sessions.push(session);
           }
 
+
           el.session = session;
           //See pie.envChanged event handler, need to give each element a copy of the env.
-          el.env = _.cloneDeep(env);
-          el.question = question;
-
-          Events.fireStarted(session);
+          // el.env = _.cloneDeep(env);
+          // el.question = question;
         }
 
         var controlPanel = document.querySelector('pie-control-panel');
@@ -100,47 +82,6 @@
     });
   }
 
-  function ClientSideProcessing(frameworks) {
-
-    var processors = {};
-
-    this.register = function (name, logic) {
-      processors[name] = logic;
-    };
-
-    this.evaluate = function (questions, sessions) {
-      return new Promise(function (resolve, reject) {
-
-        var questionAndSessions = _.map(questions, function (q) {
-          var session = _.find(sessions, { id: q.id });
-          return { question: q, session: _.cloneDeep(session) }
-        });
-
-        var out = _.map(questionAndSessions, function (qs) {
-          var logic = processors[qs.question.component.name];
-          if (logic && _.isFunction(logic.createOutcome)) {
-            var frameworkProcessor = frameworks.processing(qs.question.component.name);
-            var outcome;
-
-            if (frameworkProcessor && _.isFunction(frameworkProcessor.createOutcome)) {
-              //Note: for the frameworkProcessor we pass in the session
-              outcome = frameworkProcessor.createOutcome(logic, qs.question, qs.session, {});
-            } else {
-              //TODO: Spec out settings for createOutcome
-              outcome = logic.createOutcome(qs.question, qs.session.response, {highlightUserResponse: true});
-            }
-            
-            return { id: qs.question.id, component: qs.question.component, outcome: outcome };
-          } else {
-            console.warn('no processor found for: ', qs.question.component.name);
-            return { id: qs.question.id };
-          }
-        });
-        resolve(out);
-      });
-    };
-  }
-  
   function Frameworks() {
     
     var contentLoaded = false;
@@ -165,6 +106,12 @@
       if (key) {
         return registeredFrameworks[key].processing;
       }
+    };
+
+    this.listFrameworksAndTheirElements = function(){
+      return _.mapValues(registeredFrameworks, function(f){
+          return _.keys(f);
+      });
     };
 
     this.elementApi = function (name) {
@@ -215,6 +162,7 @@
 
   function Pie() {
 
+    console.log('overide pie...');
     var frameworks = new Frameworks();
 
     /**
@@ -229,13 +177,12 @@
       frameworks.addFramework(frameworkName, def);
     }
 
+    this.frameworksAndElements = function(){
+      return frameworks.listFrameworksAndTheirElements();
+    };
     var newContainer = function (model, mode, session, processing) {
-      console.log('this:', this);
       return new Container(model, mode, session, processing);
     }.bind(this);
-    
-    //Expose the default client side processor 
-    this.clientSideProcessor = new ClientSideProcessing(frameworks);
     
     var require = function(p, m) {
       if(!p){
@@ -258,7 +205,12 @@
     }
   };
 
-  root.pie = root.pie || {};
-  root.pie = new Pie();
+  if(root.pie){
+    throw new Error('pie is already defined, can not reregister instance - are you loading 2 containers?');
+  } else {
+    root.pie = new Pie();
+  }
 
 })(this);
+
+
