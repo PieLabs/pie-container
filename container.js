@@ -44,6 +44,8 @@
                 //@deprecated - to be removed - to support older components
                 el.state = o.model;
               });
+              var event = new CustomEvent('pie.container', {detail: {type: 'modelUpdated'}});
+              document.dispatchEvent(event); 
             })
             .catch(function(err){
               console.error(err);
