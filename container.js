@@ -2,8 +2,13 @@
 
   /** Custom element + ui handler */
   function Container(questions, env, sessions, processing) {
-    
-    env = env || { mode: 'gather', locale: 'en_US' };
+    env = env || { 
+      mode: 'gather', 
+      locale: 'en_US',
+      accessibility: {
+        colorContrast: 'black_and_white'
+      }
+    };
 
     sessions = sessions || [];
     
