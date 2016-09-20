@@ -7,7 +7,7 @@
         mode: 'gather',
         locale: 'en_US',
         accessibility: {
-          colorContrast: 'black_and_white'
+          colorContrast: 'black_on_white'
         }
       };
 
