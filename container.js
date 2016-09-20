@@ -66,7 +66,6 @@
     }
 
     function applySessions(sessions, els){
-      console.log('applySessions', sessions, els);
       els.forEach(function(el){
         var session = _.find(sessions, {
           id: el.getAttribute('data-id')
@@ -76,7 +75,6 @@
     }
 
     function applyModels(questions, sessions, env, els) {
-      console.log('applyModels', sessions, els);
       return processing.model(questions, sessions, env)
         .then(function(models) {
           _.map(models, function(o) {
