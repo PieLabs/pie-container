@@ -23,6 +23,11 @@
 
     logSession();
 
+
+    document.addEventListener('pie', function(event){
+      console.log('[PIE-EVENT]', event.target, event.detail);
+    });
+    
     document.addEventListener('DOMContentLoaded', function() {
 
       //TODO.. remove this timeout.
